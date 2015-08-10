@@ -45,6 +45,7 @@ Setup(() =>
     Information("Is local build: " + local.ToString());
     Information("Is running on AppVeyor: " + isRunningOnAppVeyor.ToString());
     Information("Semantic Version: " + semanticVersion);
+    Information("NuGet Api Key: " + EnvironmentVariable("NuGetApiKey"));
 });
 
 Teardown(() =>
