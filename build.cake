@@ -157,7 +157,7 @@ Task("Create-NuGet-Packages")
 		var projectFileName = nuspecFile.GetFilenameWithoutExtension() + ".csproj";
 		StartProcess(nugetExecutable, new ProcessSettings 
 			{ 
-				Arguments = "pack -Symbols " + projectFileName + " -Version " + semanticVersion, 
+				Arguments = "pack -Symbols " + projectFileName + " -Version " + semanticVersion + " -Properties Configuration=" + configuration, 
 				WorkingDirectory = nuspecFile.GetDirectory() 
 			}
 		);
