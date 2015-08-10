@@ -1,24 +1,16 @@
--
-  init:
-    - git config --global core.autocrlf true
+# Build script
+init:
+  - git config --global core.autocrlf true
 
-  branches:
-    only:
-      - develop
+# Build script
+build_script:
+  - cmd: powershell -NoProfile -ExecutionPolicy unrestricted -Command .\build.ps1
 
-  build_script:
-    - cmd: powershell -NoProfile -ExecutionPolicy unrestricted -Command .\build.ps1
+# Tests
+test: off
 
-  test: off
--
-  init:
-    - git config --global core.autocrlf true
-
-  branches:
-    only:
-      - master
-
-  build_script:
-    - cmd: powershell -NoProfile -ExecutionPolicy unrestricted -Command .\build.ps1 -Target "Package"
-
-  test: off  
+# Branches to build
+branches:
+  # Whitelist
+  only:
+    - develop
