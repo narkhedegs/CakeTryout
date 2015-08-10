@@ -1,16 +1,16 @@
 <?xml version="1.0"?>
 <package >
   <metadata>
-    <id>$id$</id>
+    <id>CakeTryout</id>
     <version>$version$</version>
-    <title>$title$</title>
+    <title>CakeTryout</title>
     <authors>narkhedegs@gmail.com</authors>
     <owners>narkhedegs@gmail.com</owners>
     <licenseUrl>https://github.com/narkhedegs/CakeTryout/blob/develop/LICENSE</licenseUrl>
     <projectUrl>https://github.com/narkhedegs/CakeTryout</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <description>$description$</description>
-    <copyright>$copyright$</copyright>
+    <description>CakeTryout is a sample project to play with Cake build system and AppVeyor continuous integration platform.</description>
+    <copyright>Copyright © narkhedegs@gmail.com</copyright>
     <tags>CakeTryout</tags>
   </metadata>
 </package>
