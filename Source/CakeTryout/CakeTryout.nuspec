@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>narkhedegs@gmail.com</authors>
+    <owners>narkhedegs@gmail.com</owners>
+    <licenseUrl>https://github.com/narkhedegs/CakeTryout/blob/develop/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/narkhedegs/CakeTryout</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>$description$</description>
+    <copyright>$copyright$</copyright>
+    <tags>CakeTryout</tags>
+  </metadata>
+</package>
