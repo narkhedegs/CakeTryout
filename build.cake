@@ -100,6 +100,7 @@ Task("Restore-NuGet-Packages")
 
 Task("Patch-Assembly-Info")
     .IsDependentOn("Restore-NuGet-Packages")
+	.WithCriteria(() => !local)
     .Does(() =>
 {
 	var assemblyInfoFiles = GetFiles("./**/AssemblyInfo.cs");
@@ -135,8 +136,8 @@ Task("Run-Unit-Tests")
     .IsDependentOn("Build")
     .Does(() =>
 {
-	var testDlls = GetFiles("./Source/**/bin/" + configuration + "/*.Tests.dll");
-	if(testDlls.Count() > 0)
+	var testAssemblies = GetFiles("./Source/**/bin/" + configuration + "/*.Tests.dll");
+	if(testAssemblies.Count() > 0)
 	{
 	    NUnit("./Source/**/bin/" + configuration + "/*.Tests.dll", 
 		new NUnitSettings 
@@ -149,6 +150,7 @@ Task("Run-Unit-Tests")
 });
 
 Task("Create-NuGet-Packages")
+
     .IsDependentOn("Run-Unit-Tests")
     .Does(() =>
 {
