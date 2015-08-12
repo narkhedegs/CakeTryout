@@ -14,6 +14,7 @@ var projectName = "CakeTryout";
 // Get whether or not this is a local build.
 var local = BuildSystem.IsLocalBuild;
 var isRunningOnAppVeyor = AppVeyor.IsRunningOnAppVeyor;
+var isPullRequest = AppVeyor.Environment.PullRequest.IsPullRequest;
 
 // Parse release notes.
 var releaseNotes = ParseReleaseNotes("./ReleaseNotes.md");
@@ -45,6 +46,7 @@ Setup(() =>
     Information("Is local build: " + local.ToString());
     Information("Is running on AppVeyor: " + isRunningOnAppVeyor.ToString());
     Information("Semantic Version: " + semanticVersion);
+    Information("NuGet Api Key: " + EnvironmentVariable("NuGetApiKey"));
 });
 
 Teardown(() =>
@@ -99,6 +101,7 @@ Task("Restore-NuGet-Packages")
 
 Task("Patch-Assembly-Info")
     .IsDependentOn("Restore-NuGet-Packages")
+	.WithCriteria(() => !local)
     .Does(() =>
 {
 	var assemblyInfoFiles = GetFiles("./**/AssemblyInfo.cs");
@@ -134,8 +137,8 @@ Task("Run-Unit-Tests")
     .IsDependentOn("Build")
     .Does(() =>
 {
-	var testDlls = GetFiles("./Source/**/bin/" + configuration + "/*.Tests.dll");
-	if(testDlls.Count() > 0)
+	var testAssemblies = GetFiles("./Source/**/bin/" + configuration + "/*.Tests.dll");
+	if(testAssemblies.Count() > 0)
 	{
 	    NUnit("./Source/**/bin/" + configuration + "/*.Tests.dll", 
 		new NUnitSettings 
@@ -167,6 +170,27 @@ Task("Create-NuGet-Packages")
 	MoveFiles(nugetPackageFiles, artifactsDirectory);
 });
 
+Task("Publish-NuGet-Packages")
+    .IsDependentOn("Create-NuGet-Packages")
+    .WithCriteria(() => !local)
+    .WithCriteria(() => !isPullRequest)
+    .Does(() =>
+{
+    // Resolve the API key.
+    var apiKey = EnvironmentVariable("NuGetApiKey");
+    if(string.IsNullOrEmpty(apiKey)) {
+        throw new InvalidOperationException("Could not resolve NuGet API key.");
+    }
+
+	var nugetPackages = GetFiles(artifactsDirectory.Path + "/**/*.nupkg");
+	foreach(var nugetPackage in nugetPackages)
+	{
+		NuGetPush(nugetPackage, new NuGetPushSettings {
+			ApiKey = apiKey
+		});
+	}
+});
+
 ///////////////////////////////////////////////////////////////////////////////
 // TARGETS
 ///////////////////////////////////////////////////////////////////////////////
@@ -176,6 +200,9 @@ Task("Default")
 
 Task("Package")
     .IsDependentOn("Create-NuGet-Packages");
+	
+Task("Publish")
+    .IsDependentOn("Publish-NuGet-Packages");
 
 ///////////////////////////////////////////////////////////////////////////////
 // EXECUTION
