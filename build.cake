@@ -14,6 +14,7 @@ var projectName = "CakeTryout";
 // Get whether or not this is a local build.
 var local = BuildSystem.IsLocalBuild;
 var isRunningOnAppVeyor = AppVeyor.IsRunningOnAppVeyor;
+var isPullRequest = AppVeyor.Environment.PullRequest.IsPullRequest;
 
 // Parse release notes.
 var releaseNotes = ParseReleaseNotes("./ReleaseNotes.md");
@@ -150,7 +151,6 @@ Task("Run-Unit-Tests")
 });
 
 Task("Create-NuGet-Packages")
-
     .IsDependentOn("Run-Unit-Tests")
     .Does(() =>
 {
@@ -170,6 +170,27 @@ Task("Create-NuGet-Packages")
 	MoveFiles(nugetPackageFiles, artifactsDirectory);
 });
 
+Task("Publish-NuGet-Packages")
+    .IsDependentOn("Create-NuGet-Packages")
+    .WithCriteria(() => !local)
+    .WithCriteria(() => !isPullRequest)
+    .Does(() =>
+{
+    // Resolve the API key.
+    var apiKey = EnvironmentVariable("NuGetApiKey");
+    if(string.IsNullOrEmpty(apiKey)) {
+        throw new InvalidOperationException("Could not resolve NuGet API key.");
+    }
+
+	var nugetPackages = GetFiles(artifactsDirectory.Path + "/**/*.nupkg");
+	foreach(var nugetPackage in nugetPackages)
+	{
+		NuGetPush(nugetPackage, new NuGetPushSettings {
+			ApiKey = apiKey
+		});
+	}
+});
+
 ///////////////////////////////////////////////////////////////////////////////
 // TARGETS
 ///////////////////////////////////////////////////////////////////////////////
@@ -179,6 +200,9 @@ Task("Default")
 
 Task("Package")
     .IsDependentOn("Create-NuGet-Packages");
+	
+Task("Publish")
+    .IsDependentOn("Publish-NuGet-Packages");
 
 ///////////////////////////////////////////////////////////////////////////////
 // EXECUTION
