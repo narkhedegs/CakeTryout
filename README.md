@@ -1,5 +1,7 @@
 # CakeTryout
 
+[![Build status](https://ci.appveyor.com/api/projects/status/qratu1xeqk0wqqvv?svg=true)](https://ci.appveyor.com/project/narkhedegs/caketryout)
+
 ![eating cake](https://raw.githubusercontent.com/narkhedegs/CakeTryout/develop/cake-eating-1.gif "eating cake")
 
 CakeTryout is a sample project to play with [Cake](https://github.com/cake-build/cake) build system and [AppVeyor](http://www.appveyor.com/) continuous integration platform.
