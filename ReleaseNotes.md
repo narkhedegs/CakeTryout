@@ -1,3 +1,6 @@
+### New in 0.0.2 (Released 2015/08/12)
+* Added AppVeyor build status badge to ReadMe file.
+
 ### New in 0.0.1 (Released 2015/08/11)
 * First release of CakeTryout.
 * Added functionality to restore nuget packages before building.
