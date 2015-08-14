@@ -170,8 +170,27 @@ Task("Create-NuGet-Packages")
 	MoveFiles(nugetPackageFiles, artifactsDirectory);
 });
 
+Task("Update-AppVeyor-Build-Number")
+    .WithCriteria(() => isRunningOnAppVeyor)
+    .Does(() =>
+{
+    AppVeyor.UpdateBuildVersion(semanticVersion);
+});
+
+Task("Upload-AppVeyor-Artifacts")
+    .IsDependentOn("Package")
+    .WithCriteria(() => isRunningOnAppVeyor)
+    .Does(() =>
+{
+	var artifacts = GetFiles(artifactsDirectory.Path + "/**/*.nupkg");
+	foreach(var artifact in artifacts)
+	{
+		AppVeyor.UploadArtifact(artifact);
+	}
+});
+
 Task("Publish-NuGet-Packages")
-    .IsDependentOn("Create-NuGet-Packages")
+	.IsDependentOn("Upload-AppVeyor-Artifacts")
     .WithCriteria(() => !local)
     .WithCriteria(() => !isPullRequest)
     .Does(() =>
@@ -202,6 +221,8 @@ Task("Package")
     .IsDependentOn("Create-NuGet-Packages");
 	
 Task("Publish")
+	.IsDependentOn("Update-AppVeyor-Build-Number")
+	.IsDependentOn("Upload-AppVeyor-Artifacts")
     .IsDependentOn("Publish-NuGet-Packages");
 
 ///////////////////////////////////////////////////////////////////////////////
