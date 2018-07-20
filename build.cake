@@ -1,35 +1,31 @@
-///////////////////////////////////////////////////////////////////////////////
-// ARGUMENTS
-///////////////////////////////////////////////////////////////////////////////
+#tool nuget:?package=NUnit.ConsoleRunner&version=3.4.0
+#tool nuget:?package=GitVersion.CommandLine
 
-var target = Argument<string>("target", "Default");
-var configuration = Argument<string>("configuration", "Release");
+//////////////////////////////////////////////////////////////////////
+// ARGUMENTS
+//////////////////////////////////////////////////////////////////////
+
+var target = Argument("target", "Default");
+var configuration = Argument("configuration", "Release");
+
+var version = GitVersion();
 
 ///////////////////////////////////////////////////////////////////////////////
 // PREPARATION
 ///////////////////////////////////////////////////////////////////////////////
 
-var projectName = "CakeTryout";
-
 // Get whether or not this is a local build.
-var local = BuildSystem.IsLocalBuild;
+var isLocalBuild = BuildSystem.IsLocalBuild;
 var isRunningOnAppVeyor = AppVeyor.IsRunningOnAppVeyor;
 var isPullRequest = AppVeyor.Environment.PullRequest.IsPullRequest;
 
-// Parse release notes.
-var releaseNotes = ParseReleaseNotes("./ReleaseNotes.md");
-
-// Get version.
-var semanticVersion = releaseNotes.Version.ToString();
-
 // Define directories.
-var sourceDirectory = Directory("./Source");
-var buildDirectory = sourceDirectory + Directory(projectName + "/bin") + Directory(configuration);
+var toolsDirectory = Directory("./Tools");
 var outputDirectory = Directory("./Output");
+var temporaryDirectory = Directory("./Temporary");
 var testResultsDirectory = outputDirectory + Directory("TestResults");
 var artifactsDirectory = outputDirectory + Directory("Artifacts");
-var solutions = GetFiles("./**/*.sln");
-var solutionPaths = solutions.Select(solution => solution.GetDirectory());
+var solutionFile = GetFiles("./**/*.sln").First();
 
 // Define files.
 var nugetExecutable = "./Tools/nuget.exe"; 
@@ -38,46 +34,41 @@ var nugetExecutable = "./Tools/nuget.exe";
 // SETUP / TEARDOWN
 ///////////////////////////////////////////////////////////////////////////////
 
-Setup(() =>
+Setup(context =>
 {
     // Executed BEFORE the first task.
     Information("Target: " + target);
     Information("Configuration: " + configuration);
-    Information("Is local build: " + local.ToString());
-    Information("Is running on AppVeyor: " + isRunningOnAppVeyor.ToString());
-    Information("Semantic Version: " + semanticVersion);
-    Information("NuGet Api Key: " + EnvironmentVariable("NuGetApiKey"));
+    Information("Is local build: " + isLocalBuild.ToString());
+    Information("Is running on AppVeyor: " + isRunningOnAppVeyor.ToString());    
 });
 
-Teardown(() =>
+Teardown(context =>
 {
     // Executed AFTER the last task.
-    Information("Finished running tasks.");
+    Information("Finished running tasks.");    
 });
 
-///////////////////////////////////////////////////////////////////////////////
-// TASK DEFINITIONS
-///////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+// TASKS
+//////////////////////////////////////////////////////////////////////
 
 Task("Clean")
     .Does(() =>
 {
     // Clean solution directories.
-    foreach(var path in solutionPaths)
-    {
-        Information("Cleaning {0}", path);
-        CleanDirectories(path + "/**/bin/" + configuration);
-        CleanDirectories(path + "/**/obj/" + configuration);
-    }
-
+    CleanDirectories(solutionFile.FullPath + "/**/bin/" + configuration);
+    CleanDirectories(solutionFile.FullPath + "/**/obj/" + configuration);
 	CleanDirectories(outputDirectory);
+	CleanDirectories(temporaryDirectory);
 });
 
 Task("Create-Directories")
 	.IsDependentOn("Clean")
     .Does(() =>
 {
-	var directories = new List<DirectoryPath>{ outputDirectory, testResultsDirectory, artifactsDirectory };
+	var directories = new List<DirectoryPath>{ outputDirectory, testResultsDirectory, artifactsDirectory, temporaryDirectory };
+
 	directories.ForEach(directory => 
 	{
 		if (!DirectoryExists(directory))
@@ -88,48 +79,27 @@ Task("Create-Directories")
 });
 
 Task("Restore-NuGet-Packages")
-	.IsDependentOn("Create-Directories")
+    .IsDependentOn("Create-Directories")
     .Does(() =>
 {
-    // Restore all NuGet packages.
-    foreach(var solution in solutions)
-    {
-        Information("Restoring {0}...", solution);
-        NuGetRestore(solution, new NuGetRestoreSettings { ConfigFile = solution.GetDirectory() + "/nuget.config" });
-    }
-});
-
-Task("Patch-Assembly-Info")
-    .IsDependentOn("Restore-NuGet-Packages")
-	.WithCriteria(() => !local)
-    .Does(() =>
-{
-	var assemblyInfoFiles = GetFiles("./**/AssemblyInfo.cs");
-	foreach(var assemblyInfoFile in assemblyInfoFiles)
-	{
-	    CreateAssemblyInfo(assemblyInfoFile, new AssemblyInfoSettings {
-			Product = projectName,
-			Version = semanticVersion,
-			FileVersion = semanticVersion,
-			InformationalVersion = semanticVersion,
-			Copyright = "Copyright (c) Gaurav Narkhede"
-		});
-	}
+    DotNetCoreRestore();
 });
 
 Task("Build")
-    .IsDependentOn("Patch-Assembly-Info")
+    .IsDependentOn("Restore-NuGet-Packages")
     .Does(() =>
 {
-    // Build all solutions.
-    foreach(var solution in solutions)
+    if(IsRunningOnWindows())
     {
-        Information("Building {0}", solution);
-        MSBuild(solution, settings => 
-            settings.SetPlatformTarget(PlatformTarget.MSIL)
-                .WithProperty("TreatWarningsAsErrors","true")
-                .WithTarget("Build")
-                .SetConfiguration(configuration));
+      // Use MSBuild
+      MSBuild(solutionFile.FullPath, settings =>
+        settings.SetConfiguration(configuration));
+    }
+    else
+    {
+      // Use XBuild
+      XBuild(solutionFile.FullPath, settings =>
+        settings.SetConfiguration(configuration));
     }
 });
 
@@ -137,96 +107,38 @@ Task("Run-Unit-Tests")
     .IsDependentOn("Build")
     .Does(() =>
 {
-	var testAssemblies = GetFiles("./Source/**/bin/" + configuration + "/*.Tests.dll");
-	if(testAssemblies.Count() > 0)
-	{
-	    NUnit("./Source/**/bin/" + configuration + "/*.Tests.dll", 
-		new NUnitSettings 
-			{ 
-				OutputFile = testResultsDirectory.Path + "/TestResults.xml", 
-				NoResults = true 
-			}
-		);
-	}
+    var unitTestProjectFiles = GetFiles("./**/*.UnitTests.csproj");
+
+    foreach(var unitTestProjectFile in unitTestProjectFiles)
+    {
+        DotNetCoreTest(unitTestProjectFile.FullPath);
+    }
 });
 
 Task("Create-NuGet-Packages")
     .IsDependentOn("Run-Unit-Tests")
     .Does(() =>
 {
-	var nuspecFiles = GetFiles(sourceDirectory.Path + "/**/*.nuspec");
-	foreach(var nuspecFile in nuspecFiles)
-	{
-		var projectFileName = nuspecFile.GetFilenameWithoutExtension() + ".csproj";
-		StartProcess(nugetExecutable, new ProcessSettings 
-			{ 
-				Arguments = "pack -Symbols " + projectFileName + " -Version " + semanticVersion + " -Properties Configuration=" + configuration, 
-				WorkingDirectory = nuspecFile.GetDirectory() 
-			}
-		);
-	}
+    var projectFiles = GetFiles("./**/*.csproj").Where(projectFile => !projectFile.GetFilename().FullPath.ToLower().Contains("unittests"));
 
-	var nugetPackageFiles = GetFiles(sourceDirectory.Path + "/**/*.nupkg");
-	MoveFiles(nugetPackageFiles, artifactsDirectory);
-});
-
-Task("Update-AppVeyor-Build-Number")
-    .WithCriteria(() => isRunningOnAppVeyor)
-    .Does(() =>
-{
-    AppVeyor.UpdateBuildVersion(semanticVersion);
-});
-
-Task("Upload-AppVeyor-Artifacts")
-    .IsDependentOn("Package")
-    .WithCriteria(() => isRunningOnAppVeyor)
-    .Does(() =>
-{
-	var artifacts = GetFiles(artifactsDirectory.Path + "/**/*.nupkg");
-	foreach(var artifact in artifacts)
-	{
-		AppVeyor.UploadArtifact(artifact);
-	}
-});
-
-Task("Publish-NuGet-Packages")
-	.IsDependentOn("Upload-AppVeyor-Artifacts")
-    .WithCriteria(() => !local)
-    .WithCriteria(() => !isPullRequest)
-    .Does(() =>
-{
-    // Resolve the API key.
-    var apiKey = EnvironmentVariable("NuGetApiKey");
-    if(string.IsNullOrEmpty(apiKey)) {
-        throw new InvalidOperationException("Could not resolve NuGet API key.");
+    foreach(var projectFile in projectFiles)
+    {
+        DotNetCorePack(projectFile.FullPath, new DotNetCorePackSettings{
+            Configuration = configuration,
+            OutputDirectory = artifactsDirectory
+        });
     }
-
-	var nugetPackages = GetFiles(artifactsDirectory.Path + "/**/*.nupkg");
-	foreach(var nugetPackage in nugetPackages)
-	{
-		NuGetPush(nugetPackage, new NuGetPushSettings {
-			ApiKey = apiKey
-		});
-	}
 });
 
-///////////////////////////////////////////////////////////////////////////////
-// TARGETS
-///////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+// TASK TARGETS
+//////////////////////////////////////////////////////////////////////
 
 Task("Default")
     .IsDependentOn("Run-Unit-Tests");
 
-Task("Package")
-    .IsDependentOn("Create-NuGet-Packages");
-	
-Task("Publish")
-	.IsDependentOn("Update-AppVeyor-Build-Number")
-	.IsDependentOn("Upload-AppVeyor-Artifacts")
-    .IsDependentOn("Publish-NuGet-Packages");
-
-///////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
 // EXECUTION
-///////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
 
 RunTarget(target);

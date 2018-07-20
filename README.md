@@ -2,8 +2,6 @@
 
 [![Build status](https://ci.appveyor.com/api/projects/status/qratu1xeqk0wqqvv?svg=true)](https://ci.appveyor.com/project/narkhedegs/caketryout)
 
-![eating cake](https://raw.githubusercontent.com/narkhedegs/CakeTryout/develop/cake-eating-1.gif "eating cake")
-
 CakeTryout is a sample project to play with [Cake](https://github.com/cake-build/cake) build system and [AppVeyor](http://www.appveyor.com/) continuous integration platform.
 
 The Cake build script can performs following tasks - 
@@ -15,4 +13,6 @@ The Cake build script can performs following tasks -
  6. Run NUnit unit tests.
  7. Create NuGet packages and symbol packages.
 
-![i am not even sorry](https://raw.githubusercontent.com/narkhedegs/CakeTryout/develop/cake-eating-2.gif "i am not even sorry")
+# License
+
+MIT © [narkhedegs](https://github.com/narkhedegs)

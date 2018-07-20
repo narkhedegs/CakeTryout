@@ -1,9 +1,10 @@
 ﻿using NUnit.Framework;
 
-namespace CakeTryout.Tests
+namespace CakeTryout.UnitTests
 {
     [TestFixture]
-    public class when_adding_two_integers
+    // ReSharper disable once InconsistentNaming
+    public class When_adding_two_integers
     {
         private ICalculator _calculator;
 
@@ -14,7 +15,7 @@ namespace CakeTryout.Tests
         }
 
         [Test]
-        public void it_should_return_correct_results()
+        public void It_should_return_correct_results()
         {
             const int first = 2;
             const int second = 2;
